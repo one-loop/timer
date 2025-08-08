@@ -2,6 +2,49 @@ let timerInterval;
 let elapsedSeconds = 0;
 let isRunning = false;
 
+function applyTheme(theme) {
+    const root = document.body;
+    if (theme === 'dark') {
+        root.classList.add('dark');
+    } else {
+        root.classList.remove('dark');
+    }
+}
+
+function getInitialTheme() {
+    const params = new URLSearchParams(window.location.search);
+    const themeParam = params.get('theme'); // 'light' | 'dark' | 'auto'
+    if (themeParam === 'light' || themeParam === 'dark') return themeParam;
+    return 'auto';
+}
+
+function setupTheme() {
+    const initial = getInitialTheme();
+    if (initial === 'auto') {
+        const mql = window.matchMedia('(prefers-color-scheme: dark)');
+        applyTheme(mql.matches ? 'dark' : 'light');
+        // respond to system changes
+        try {
+            mql.addEventListener('change', (e) => applyTheme(e.matches ? 'dark' : 'light'));
+        } catch (_) {
+            // Safari < 14 fallback
+            mql.addListener((e) => applyTheme(e.matches ? 'dark' : 'light'));
+        }
+    } else {
+        applyTheme(initial);
+    }
+
+    // Optional: allow parent to override via postMessage
+    window.addEventListener('message', (event) => {
+        // Do not rely on origin due to Notion proxying; accept trusted payload shape only
+        const data = event && event.data;
+        if (!data || typeof data !== 'object') return;
+        if (data.type === 'set-theme' && (data.value === 'light' || data.value === 'dark')) {
+            applyTheme(data.value);
+        }
+    });
+}
+
 function startTimer() {
     if (!isRunning) {
         timerInterval = setInterval(() => {
@@ -37,6 +80,7 @@ function formatTime(seconds) {
 }
 
 window.onload = function() {
+    setupTheme();
     startTimer();
     document.getElementById('stopButton').onclick = stopTimer;
     document.getElementById('clearButton').onclick = clearTimer;
